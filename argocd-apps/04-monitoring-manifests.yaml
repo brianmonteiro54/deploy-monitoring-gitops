@@ -1,0 +1,31 @@
+# Esta Application aponta para a pasta manifests/ do proprio repositorio.
+# O ArgoCD vai aplicar todos os YAMLs dentro dessa pasta automaticamente.
+# Isso inclui: namespace, ServiceMonitors, dashboard ConfigMap,
+# PrometheusRules, Alertmanager config, RBAC e Self-Healing.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-manifests
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+    app.kubernetes.io/component: observability
+spec:
+  project: default
+  source:
+    # >>> SUBSTITUA pela URL do seu repositorio <<<
+    repoURL: "https://github.com/<SEU_USER>/deploy-monitoring.git"
+    targetRevision: main
+    path: manifests
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    # Namespace padrao (cada manifest define o seu proprio namespace)
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

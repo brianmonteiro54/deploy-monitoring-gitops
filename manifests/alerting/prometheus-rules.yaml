@@ -1,0 +1,73 @@
+# PrometheusRule para alertas inteligentes
+# Integra com Alertmanager → OpsGenie → Slack → Self-Healing
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: togglemaster-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: togglemaster.rules
+      rules:
+        # Alerta: Taxa de erros HTTP 5xx > 5% por 2 minutos
+        - alert: HighErrorRate5xx
+          expr: |
+            (
+              sum(rate(http_server_request_duration_seconds_count{service_namespace="togglemaster", http_response_status_code=~"5.."}[5m])) by (service_name)
+              /
+              sum(rate(http_server_request_duration_seconds_count{service_namespace="togglemaster"}[5m])) by (service_name)
+            ) * 100 > 5
+          for: 2m
+          labels:
+            severity: critical
+            team: togglemaster
+            self_healing: "true"
+          annotations:
+            summary: "Alta taxa de erros 5xx no {{ $labels.service_name }}"
+            description: "O serviço {{ $labels.service_name }} está com {{ $value | printf \"%.1f\" }}% de erros 5xx nos últimos 5 minutos. Threshold: 5%."
+            runbook_url: "https://github.com/SEU_USER/togglemaster-runbooks/blob/main/high-error-rate.md"
+            dashboard_url: "http://toggle.pt/grafana/d/togglemaster-overview"
+
+        # Alerta: Pod com muitos restarts
+        - alert: PodCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace=~"togglemaster-.*"}[15m]) > 3
+          for: 5m
+          labels:
+            severity: warning
+            team: togglemaster
+          annotations:
+            summary: "Pod {{ $labels.pod }} em crash loop"
+            description: "O pod {{ $labels.pod }} no namespace {{ $labels.namespace }} reiniciou {{ $value | printf \"%.0f\" }} vezes nos últimos 15 minutos."
+
+        # Alerta: Alta latência P95
+        - alert: HighLatencyP95
+          expr: |
+            histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service_namespace="togglemaster"}[5m])) by (le, service_name)) > 2
+          for: 3m
+          labels:
+            severity: warning
+            team: togglemaster
+          annotations:
+            summary: "Alta latência P95 no {{ $labels.service_name }}"
+            description: "O serviço {{ $labels.service_name }} está com latência P95 de {{ $value | printf \"%.2f\" }}s. Threshold: 2s."
+
+        # Alerta: Uso alto de memória
+        - alert: HighMemoryUsage
+          expr: |
+            (
+              sum(container_memory_working_set_bytes{namespace=~"togglemaster-.*"}) by (pod, namespace)
+              /
+              sum(kube_pod_container_resource_limits{namespace=~"togglemaster-.*", resource="memory"}) by (pod, namespace)
+            ) * 100 > 85
+          for: 5m
+          labels:
+            severity: warning
+            team: togglemaster
+          annotations:
+            summary: "Alto uso de memória no pod {{ $labels.pod }}"
+            description: "O pod {{ $labels.pod }} está usando {{ $value | printf \"%.0f\" }}% do limite de memória."

@@ -1,0 +1,97 @@
+# ServiceMonitor para cada microsserviço do ToggleMaster
+# Prometheus vai fazer scrape das métricas de cada serviço
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: auth-service
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+spec:
+  namespaceSelector:
+    matchNames:
+      - togglemaster-auth
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: flag-service
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+spec:
+  namespaceSelector:
+    matchNames:
+      - togglemaster-flag
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flag-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: targeting-service
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+spec:
+  namespaceSelector:
+    matchNames:
+      - togglemaster-targeting
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: targeting-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: evaluation-service
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+spec:
+  namespaceSelector:
+    matchNames:
+      - togglemaster-evaluation
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: evaluation-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: analytics-service
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+spec:
+  namespaceSelector:
+    matchNames:
+      - togglemaster-analytics
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: analytics-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
