@@ -213,14 +213,8 @@ spec:
       containers:
         - name: webhook-server
           # Usa imagem leve com Python + kubectl já instalado
-          image: python:3.11-slim
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              apt-get update -qq && apt-get install -y -qq curl && \
-              curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
-              chmod +x kubectl && mv kubectl /usr/local/bin/ && \
-              python3 /app/server.py
+          image: alpine/k8s:1.29.2
+          command: ["python3", "/app/server.py"]
           ports:
             - name: http
               containerPort: 9095
