@@ -1,8 +1,3 @@
-# Alertmanager Configuration Secret (versão cluster privado)
-# Self-healing via webhook interno, sem dependência de credenciais AWS externas
-#
-# >>> SUBSTITUA os valores marcados com < > pelas suas chaves reais <<<
----
 apiVersion: v1
 kind: Secret
 metadata:
@@ -23,20 +18,17 @@ stringData:
       repeat_interval: 4h
       receiver: 'default'
       routes:
-        # Alertas críticos com self-healing
         - match:
             severity: critical
             self_healing: "true"
           receiver: 'critical-with-healing'
           continue: false
 
-        # Alertas críticos sem self-healing
         - match:
             severity: critical
           receiver: 'critical'
           continue: false
 
-        # Alertas warning
         - match:
             severity: warning
           receiver: 'chatops-only'
@@ -47,32 +39,32 @@ stringData:
         webhook_configs: []
 
       - name: 'critical-with-healing'
-        # 1) Abre incidente no OpsGenie
-        opsgenie_configs:
-          - api_key: "<YOUR_OPSGENIE_API_KEY>"
-            message: '{{ .GroupLabels.alertname }} - {{ .GroupLabels.service_name }}'
-            description: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
-            priority: P1
-            tags: 'togglemaster,critical,auto-healing'
+        pagerduty_configs:
+          - service_key: "41d2abe602e74c0bc099440c1bc426db"
+            description: '{{ .GroupLabels.alertname }} - {{ .GroupLabels.service_name }}'
+            details:
+              description: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+            severity: critical
 
         webhook_configs:
           # 2) Notifica no Discord/Slack
           - url: "<YOUR_DISCORD_WEBHOOK_URL>"
             send_resolved: true
-
           # 3) Self-Healing: webhook INTERNO do cluster
           #    Aponta para o Service do pod self-healing-webhook
+
           - url: "http://self-healing-webhook.monitoring.svc.cluster.local:9095"
             send_resolved: false
             max_alerts: 1
 
       - name: 'critical'
-        opsgenie_configs:
-          - api_key: "<YOUR_OPSGENIE_API_KEY>"
-            message: '{{ .GroupLabels.alertname }} - {{ .GroupLabels.service_name }}'
-            description: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
-            priority: P2
-            tags: 'togglemaster,critical'
+        pagerduty_configs:
+          - service_key: "41d2abe602e74c0bc099440c1bc426db"
+            description: '{{ .GroupLabels.alertname }} - {{ .GroupLabels.service_name }}'
+            details:
+              description: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+            severity: warning
+
         webhook_configs:
           - url: "<YOUR_DISCORD_WEBHOOK_URL>"
             send_resolved: true
@@ -81,13 +73,3 @@ stringData:
         webhook_configs:
           - url: "<YOUR_DISCORD_WEBHOOK_URL>"
             send_resolved: true
-
-    # -----------------------------------------------------------
-    # ALTERNATIVA SLACK: substitua webhook_configs por:
-    #   slack_configs:
-    #     - api_url: "<YOUR_SLACK_WEBHOOK_URL>"
-    #       channel: '#togglemaster-alerts'
-    #       title: '{{ .GroupLabels.alertname }}'
-    #       text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
-    #       send_resolved: true
-    # -----------------------------------------------------------
