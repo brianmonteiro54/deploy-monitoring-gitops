@@ -248,13 +248,13 @@ spec:
             httpGet:
               path: /
               port: 9095
-            initialDelaySeconds: 5
+            initialDelaySeconds: 60
             periodSeconds: 30
           readinessProbe:
             httpGet:
               path: /
               port: 9095
-            initialDelaySeconds: 3
+            initialDelaySeconds: 60
             periodSeconds: 10
       volumes:
         - name: script
