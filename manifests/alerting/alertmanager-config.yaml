@@ -48,7 +48,7 @@ stringData:
 
         webhook_configs:
           # 2) Notifica no Discord/Slack
-          - url: "<YOUR_DISCORD_WEBHOOK_URL>"
+          - url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
             send_resolved: true
           # 3) Self-Healing: webhook INTERNO do cluster
           #    Aponta para o Service do pod self-healing-webhook
@@ -66,10 +66,10 @@ stringData:
             severity: warning
 
         webhook_configs:
-          - url: "<YOUR_DISCORD_WEBHOOK_URL>"
+          - url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
             send_resolved: true
 
       - name: 'chatops-only'
         webhook_configs:
-          - url: "<YOUR_DISCORD_WEBHOOK_URL>"
+          - url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
             send_resolved: true

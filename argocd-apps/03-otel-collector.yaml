@@ -82,11 +82,10 @@ spec:
                 instance: true
                 level: true
 
-            # >>> SUBSTITUA <YOUR_NEW_RELIC_LICENSE_KEY> pela sua chave <<<
             otlp/newrelic:
               endpoint: "https://otlp.nr-data.net:4317"
               headers:
-                api-key: "<YOUR_NEW_RELIC_LICENSE_KEY>"
+                api-key: "3a5e315e5fd3252360e9eb7c8e1885aab40eNRAL"
 
             debug:
               verbosity: basic
