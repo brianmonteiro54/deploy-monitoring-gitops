@@ -1,3 +1,15 @@
+# =============================================================================
+# Application 2/4: loki-stack
+# Loki + Promtail (DaemonSet)
+# =============================================================================
+# Correções aplicadas:
+#   - Bucket S3 fixo: togglemaster-loki-637423306132 (sua conta AWS Academy)
+#   - Sem PVC — Loki usa S3 como backend, conforme recomendado pelo professor
+# =============================================================================
+# PRÉ-REQUISITO (criar o bucket uma única vez):
+#   aws s3 mb s3://togglemaster-loki-$(aws sts get-caller-identity \
+#     --query Account --output text) --region us-east-1
+# =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,6 +18,8 @@ metadata:
   labels:
     app.kubernetes.io/part-of: togglemaster
     app.kubernetes.io/component: observability
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
@@ -33,7 +47,7 @@ spec:
                     period: 24h
             storage_config:
               aws:
-                s3: s3://us-east-1/togglemaster
+                s3: s3://us-east-1/togglemaster-loki-637423306132
                 region: us-east-1
                 s3forcepathstyle: true
               boltdb_shipper:
@@ -94,3 +108,9 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

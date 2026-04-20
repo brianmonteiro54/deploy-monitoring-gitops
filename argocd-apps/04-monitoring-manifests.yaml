@@ -1,0 +1,49 @@
+# =============================================================================
+# Application 4/4: monitoring-manifests
+# =============================================================================
+# Aponta para a pasta manifests/ do próprio repositório.
+# Aplica automaticamente (com recurse) todos os YAMLs dentro:
+#   - namespace/namespace.yaml          -> cria ns monitoring (se não existir)
+#   - prometheus/service-monitors.yaml  -> ServiceMonitors dos 5 microsserviços
+#   - grafana/dashboard-configmap.yaml  -> ConfigMap do dashboard customizado
+#   - alerting/prometheus-rules.yaml    -> 4 regras de alerta (PrometheusRule CRD)
+#   - alerting/alertmanager-config.yaml -> Secret com config do Alertmanager
+#                                          (PagerDuty + Discord + self-healing)
+#   - self-healing/rbac.yaml            -> ServiceAccount + ClusterRole + Binding
+#   - self-healing/webhook-receiver.yaml-> Deployment + Service + Secret do webhook
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-manifests
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+    app.kubernetes.io/component: observability
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/brianmonteiro54/deploy-monitoring-gitops.git
+    targetRevision: main
+    path: manifests
+    directory:
+      recurse: true
+      include: "*.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

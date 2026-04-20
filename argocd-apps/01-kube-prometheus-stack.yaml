@@ -1,3 +1,15 @@
+# =============================================================================
+# Application 1/4: kube-prometheus-stack
+# Prometheus + Grafana + Alertmanager + node-exporter + kube-state-metrics
+# =============================================================================
+# Correções aplicadas em relação ao guia original:
+#   - Versão 65.1.0 -> 83.4.2 (mais recente estável)
+#   - ServerSideApply=true (CRDs grandes excedem 262144 bytes no client-side)
+#   - prometheusOperator.admissionWebhooks.enabled: false (evita "tls: bad certificate")
+#   - prometheusOperator.tls.enabled: false (webhook TLS não é gerado corretamente em lab)
+#   - pathType: Prefix nos ingresses (obrigatório em K8s novo)
+#   - Sem PVC (emptyDir) — AWS Academy não permite criar IAM Roles para EBS CSI
+# =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,24 +18,42 @@ metadata:
   labels:
     app.kubernetes.io/part-of: togglemaster
     app.kubernetes.io/component: observability
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
-    targetRevision: "65.1.0"
+    targetRevision: "83.4.2"
     helm:
       values: |
+        # -----------------------------------------------------------------
+        # Prometheus Operator — desabilita admission webhooks TLS
+        # Motivo: em ambientes de lab o cert do webhook não sobe direito
+        # e o StatefulSet do Prometheus nunca é criado.
+        # -----------------------------------------------------------------
+        prometheusOperator:
+          admissionWebhooks:
+            enabled: false
+          tls:
+            enabled: false
+
+        # -----------------------------------------------------------------
+        # Prometheus
+        # -----------------------------------------------------------------
         prometheus:
           prometheusSpec:
             retention: 7d
             enableRemoteWriteReceiver: true
+            # Sem PVC — emptyDir. AWS Academy sem EBS CSI Driver.
             podMonitorNamespaceSelector: {}
             serviceMonitorNamespaceSelector: {}
             ruleSelectorNilUsesHelmValues: false
             serviceMonitorSelectorNilUsesHelmValues: false
             podMonitorSelectorNilUsesHelmValues: false
-            # Sem PVC — usa emptyDir (AWS Academy sem EBS CSI Driver)
+            routePrefix: /prometheus
+            externalUrl: http://toggle.pt/prometheus
             resources:
               requests:
                 cpu: 200m
@@ -31,6 +61,21 @@ spec:
               limits:
                 cpu: 500m
                 memory: 1Gi
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              nginx.ingress.kubernetes.io/ssl-redirect: "false"
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+            hosts:
+              - toggle.pt
+            paths:
+              - /prometheus
+            pathType: Prefix
+
+        # -----------------------------------------------------------------
+        # Grafana
+        # -----------------------------------------------------------------
         grafana:
           enabled: true
           adminUser: admin
@@ -68,6 +113,7 @@ spec:
             hosts:
               - toggle.pt
             path: /grafana
+            pathType: Prefix
           grafana.ini:
             server:
               root_url: "%(protocol)s://%(domain)s/grafana/"
@@ -79,22 +125,18 @@ spec:
             limits:
               cpu: 300m
               memory: 512Mi
-        prometheus:
-          ingress:
-            enabled: true
-            ingressClassName: nginx
-            annotations:
-              nginx.ingress.kubernetes.io/ssl-redirect: "false"
-              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-            hosts:
-              - toggle.pt
-            paths:
-              - /prometheus
-          prometheusSpec:
-            routePrefix: /prometheus
-            externalUrl: http://toggle.pt/prometheus
+
+        # -----------------------------------------------------------------
+        # Alertmanager
+        # -----------------------------------------------------------------
         alertmanager:
           enabled: true
+          alertmanagerSpec:
+            routePrefix: /alertmanager
+            externalUrl: http://toggle.pt/alertmanager
+            # Usa o Secret alertmanager-config criado pela Application
+            # monitoring-manifests, que tem a config real (PagerDuty + Discord + self-healing).
+            configSecret: alertmanager-config
           ingress:
             enabled: true
             ingressClassName: nginx
@@ -105,15 +147,18 @@ spec:
               - toggle.pt
             paths:
               - /alertmanager
-          alertmanagerSpec:
-            routePrefix: /alertmanager
-            externalUrl: http://toggle.pt/alertmanager
+            pathType: Prefix
+
+        # -----------------------------------------------------------------
+        # Exporters padrão
+        # -----------------------------------------------------------------
         nodeExporter:
           enabled: true
         kubeStateMetrics:
           enabled: true
         defaultRules:
           create: true
+
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -124,3 +169,9 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

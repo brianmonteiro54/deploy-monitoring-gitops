@@ -1,3 +1,16 @@
+# =============================================================================
+# Application 3/4: otel-collector
+# OpenTelemetry Collector (hub central de observabilidade)
+# =============================================================================
+# Correções aplicadas em relação ao guia original:
+#   - Versão 0.97.1 -> 0.146.1 (mais recente)
+#   - image.repository: otel/opentelemetry-collector-contrib
+#     * A imagem k8s (padrão nas versões novas) NÃO tem o exporter
+#       prometheusremotewrite, por isso precisamos da contrib.
+#   - Exporter `loki` removido do contrib — substituído por `otlphttp/loki`
+#     apontando para o endpoint OTLP nativo do Loki (/otlp).
+#   - API Key do New Relic já preenchida.
+# =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,14 +19,22 @@ metadata:
   labels:
     app.kubernetes.io/part-of: togglemaster
     app.kubernetes.io/component: observability
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
     chart: opentelemetry-collector
-    targetRevision: "0.97.1"
+    targetRevision: "0.146.1"
     helm:
       values: |
+        # ---------------------------------------------------------------
+        # Imagem contrib — contém todos os exporters (prometheusremotewrite etc)
+        # ---------------------------------------------------------------
+        image:
+          repository: "otel/opentelemetry-collector-contrib"
+
         mode: deployment
         replicaCount: 1
 
@@ -69,19 +90,19 @@ spec:
                   action: upsert
 
           exporters:
+            # Metrics -> Prometheus
             prometheusremotewrite:
               endpoint: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
               resource_to_telemetry_conversion:
                 enabled: true
 
-            loki:
-              endpoint: "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
-              default_labels_enabled:
-                exporter: true
-                job: true
-                instance: true
-                level: true
+            # Logs -> Loki (endpoint OTLP nativo /otlp, o antigo exporter `loki` foi removido)
+            otlphttp/loki:
+              endpoint: "http://loki.monitoring.svc.cluster.local:3100/otlp"
+              tls:
+                insecure: true
 
+            # Traces + Metrics + Logs -> New Relic (APM)
             otlp/newrelic:
               endpoint: "https://otlp.nr-data.net:4317"
               headers:
@@ -104,11 +125,12 @@ spec:
               logs:
                 receivers: [otlp]
                 processors: [memory_limiter, resource, batch]
-                exporters: [loki, otlp/newrelic]
+                exporters: [otlphttp/loki, otlp/newrelic]
               traces:
                 receivers: [otlp]
                 processors: [memory_limiter, resource, batch]
                 exporters: [otlp/newrelic, debug]
+
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -118,3 +140,9 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
