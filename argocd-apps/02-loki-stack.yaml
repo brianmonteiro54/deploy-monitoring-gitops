@@ -28,6 +28,23 @@ spec:
     targetRevision: "2.10.2"
     helm:
       values: |
+        # Desliga o subchart do Grafana embutido no loki-stack.
+        # Já temos Grafana pelo kube-prometheus-stack e o datasource do Loki
+        # é adicionado via additionalDataSources naquele chart.
+        # Sem isso, o loki-stack cria um ConfigMap de datasource do Loki
+        # com isDefault:true, que entra em conflito com o Prometheus (default)
+        # e faz o Grafana dar panic no boot.
+        grafana:
+          enabled: false
+        prometheus:
+          enabled: false
+        fluent-bit:
+          enabled: false
+        filebeat:
+          enabled: false
+        logstash:
+          enabled: false
+
         loki:
           enabled: true
           persistence:
@@ -66,6 +83,7 @@ spec:
             limits:
               cpu: 300m
               memory: 512Mi
+
         promtail:
           enabled: true
           config:
