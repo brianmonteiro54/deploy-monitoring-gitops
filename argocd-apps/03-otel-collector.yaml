@@ -96,11 +96,6 @@ spec:
               resource_to_telemetry_conversion:
                 enabled: true
 
-            # Logs -> Loki (endpoint OTLP nativo /otlp, o antigo exporter `loki` foi removido)
-            otlphttp/loki:
-              endpoint: "http://loki-stack.monitoring.svc.cluster.local:3100/otlp"
-              tls:
-                insecure: true
 
             # Traces + Metrics + Logs -> New Relic (APM)
             otlp/newrelic:
@@ -125,7 +120,7 @@ spec:
               logs:
                 receivers: [otlp]
                 processors: [memory_limiter, resource, batch]
-                exporters: [otlphttp/loki, otlp/newrelic]
+                exporters: [otlp/newrelic]
               traces:
                 receivers: [otlp]
                 processors: [memory_limiter, resource, batch]
