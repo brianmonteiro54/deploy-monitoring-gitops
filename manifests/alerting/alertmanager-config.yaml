@@ -36,9 +36,19 @@ stringData:
 
     receivers:
       - name: 'default'
-        webhook_configs: []
+        discord_configs:
+          - webhook_url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
+            send_resolved: true
+            title: '{{ .GroupLabels.alertname }}'
+            message: |-
+              {{ range .Alerts }}
+              **{{ .Status | toUpper }}** {{ .Labels.service_name }}
+              {{ .Annotations.summary }}
+              {{ .Annotations.description }}
+              {{ end }}
 
       - name: 'critical-with-healing'
+        # 1) PagerDuty — abre incidente
         pagerduty_configs:
           - service_key: "41d2abe602e74c0bc099440c1bc426db"
             description: '{{ .GroupLabels.alertname }} - {{ .GroupLabels.service_name }}'
@@ -46,13 +56,22 @@ stringData:
               description: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
             severity: critical
 
-        webhook_configs:
-          # 2) Notifica no Discord/Slack
-          - url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
+        # 2) Discord — notifica via integração nativa
+        discord_configs:
+          - webhook_url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
             send_resolved: true
-          # 3) Self-Healing: webhook INTERNO do cluster
-          #    Aponta para o Service do pod self-healing-webhook
+            title: '🚨 [CRITICAL + SELF-HEALING] {{ .GroupLabels.alertname }}'
+            message: |-
+              {{ range .Alerts }}
+              **Serviço:** {{ .Labels.service_name }}
+              **Severity:** {{ .Labels.severity }}
+              **Status:** {{ .Status | toUpper }}
+              {{ .Annotations.summary }}
+              {{ .Annotations.description }}
+              {{ end }}
 
+        # 3) Self-Healing webhook (esse é webhook_configs normal, é um endpoint interno)
+        webhook_configs:
           - url: "http://self-healing-webhook.monitoring.svc.cluster.local:9095"
             send_resolved: false
             max_alerts: 1
@@ -63,13 +82,27 @@ stringData:
             description: '{{ .GroupLabels.alertname }} - {{ .GroupLabels.service_name }}'
             details:
               description: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
-            severity: warning
-
-        webhook_configs:
-          - url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
+            severity: critical
+        discord_configs:
+          - webhook_url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
             send_resolved: true
+            title: '🔴 [CRITICAL] {{ .GroupLabels.alertname }}'
+            message: |-
+              {{ range .Alerts }}
+              **Serviço:** {{ .Labels.service_name }}
+              **Status:** {{ .Status | toUpper }}
+              {{ .Annotations.summary }}
+              {{ .Annotations.description }}
+              {{ end }}
 
       - name: 'chatops-only'
-        webhook_configs:
-          - url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
+        discord_configs:
+          - webhook_url: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"
             send_resolved: true
+            title: '⚠️ [WARNING] {{ .GroupLabels.alertname }}'
+            message: |-
+              {{ range .Alerts }}
+              **Serviço:** {{ .Labels.service_name }}
+              {{ .Annotations.summary }}
+              {{ .Annotations.description }}
+              {{ end }}
