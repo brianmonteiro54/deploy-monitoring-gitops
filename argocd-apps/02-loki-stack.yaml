@@ -5,6 +5,13 @@
 # Correções aplicadas:
 #   - Bucket S3 fixo: togglemaster-loki-637423306132 (sua conta AWS Academy)
 #   - Sem PVC — Loki usa S3 como backend, conforme recomendado pelo professor
+#   - grafana.sidecar.datasources.enabled: false
+#     * BUG conhecido do chart loki-stack: o template datasources.yaml
+#       cria o ConfigMap mesmo com grafana.enabled:false, porque a condição
+#       do template só checa sidecar.datasources.enabled (que tem default
+#       true). Isso gera um datasource Loki com isDefault:true que conflita
+#       com o Prometheus (default) e faz o Grafana entrar em CrashLoop com
+#       "Only one datasource per organization can be marked as default".
 # =============================================================================
 # PRÉ-REQUISITO (criar o bucket uma única vez):
 #   aws s3 mb s3://togglemaster-loki-$(aws sts get-caller-identity \
@@ -28,14 +35,14 @@ spec:
     targetRevision: "2.10.2"
     helm:
       values: |
-        # Desliga o subchart do Grafana embutido no loki-stack.
-        # Já temos Grafana pelo kube-prometheus-stack e o datasource do Loki
-        # é adicionado via additionalDataSources naquele chart.
-        # Sem isso, o loki-stack cria um ConfigMap de datasource do Loki
-        # com isDefault:true, que entra em conflito com o Prometheus (default)
-        # e faz o Grafana dar panic no boot.
+        # Desliga subcharts embutidos no loki-stack que não usamos
+        # (Grafana vem do kube-prometheus-stack; Prometheus também;
+        # fluent-bit/filebeat/logstash não são necessários).
         grafana:
           enabled: false
+          sidecar:
+            datasources:
+              enabled: false
         prometheus:
           enabled: false
         fluent-bit:
