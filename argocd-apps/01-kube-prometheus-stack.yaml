@@ -158,6 +158,15 @@ spec:
           enabled: true
         defaultRules:
           create: true
+          rules:
+            kubeControllerManager: false
+            kubeScheduler: false
+            kubeProxy: true
+            etcd: false
+            kubernetesSystemApiserver: true
+            kubernetesSystemKubelet: true
+            kubernetesSystemScheduler: false
+            kubernetesSystemControllerManager: false
 
   destination:
     server: https://kubernetes.default.svc
