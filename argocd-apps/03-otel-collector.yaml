@@ -92,13 +92,13 @@ spec:
           exporters:
             # Metrics -> Prometheus
             prometheusremotewrite:
-              endpoint: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
+              endpoint: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/prometheus/api/v1/write"
               resource_to_telemetry_conversion:
                 enabled: true
 
             # Logs -> Loki (endpoint OTLP nativo /otlp, o antigo exporter `loki` foi removido)
             otlphttp/loki:
-              endpoint: "http://loki.monitoring.svc.cluster.local:3100/otlp"
+              endpoint: "http://loki-stack.monitoring.svc.cluster.local:3100/otlp"
               tls:
                 insecure: true
 
