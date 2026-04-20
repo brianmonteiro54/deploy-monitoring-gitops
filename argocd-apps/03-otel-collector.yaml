@@ -90,14 +90,24 @@ spec:
                   action: upsert
 
           exporters:
-            # Metrics -> Prometheus
+            # Metrics -> Prometheus interno
+            # IMPORTANTE: o endpoint precisa do prefixo /prometheus porque o
+            # kube-prometheus-stack está configurado com routePrefix: /prometheus
+            # no prometheusSpec. Sem o prefixo, retorna 404.
             prometheusremotewrite:
               endpoint: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/prometheus/api/v1/write"
               resource_to_telemetry_conversion:
                 enabled: true
 
+            # Logs -> Loki interno
+            # O Service se chama "loki-stack" (não "loki"), porque o chart
+            # loki-stack nomeia o Service como {{ .Release.Name }}-stack.
+            otlphttp/loki:
+              endpoint: "http://loki-stack.monitoring.svc.cluster.local:3100/otlp"
+              tls:
+                insecure: true
 
-            # Traces + Metrics + Logs -> New Relic (APM)
+            # Traces + Metrics + Logs -> New Relic (APM externo)
             otlp/newrelic:
               endpoint: "https://otlp.nr-data.net:4317"
               headers:
