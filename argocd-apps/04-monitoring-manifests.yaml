@@ -1,17 +1,6 @@
 # =============================================================================
 # Application 4/4: monitoring-manifests
 # =============================================================================
-# Aponta para a pasta manifests/ do próprio repositório.
-# Aplica automaticamente (com recurse) todos os YAMLs dentro:
-#   - namespace/namespace.yaml          -> cria ns monitoring (se não existir)
-#   - prometheus/service-monitors.yaml  -> ServiceMonitors dos 5 microsserviços
-#   - grafana/dashboard-configmap.yaml  -> ConfigMap do dashboard customizado
-#   - alerting/prometheus-rules.yaml    -> 4 regras de alerta (PrometheusRule CRD)
-#   - alerting/alertmanager-config.yaml -> Secret com config do Alertmanager
-#                                          (PagerDuty + Discord + self-healing)
-#   - self-healing/rbac.yaml            -> ServiceAccount + ClusterRole + Binding
-#   - self-healing/webhook-receiver.yaml-> Deployment + Service + Secret do webhook
-# =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -34,6 +23,18 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+  ignoreDifferences:
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /spec/target/deletionPolicy
+        - /spec/target/template/mergePolicy
+      jqPathExpressions:
+        - '.spec.data[].remoteRef.conversionStrategy'
+        - '.spec.data[].remoteRef.decodingStrategy'
+        - '.spec.data[].remoteRef.metadataPolicy'
+        - '.spec.data[].remoteRef.nullBytePolicy'
+
   syncPolicy:
     automated:
       prune: true
@@ -41,6 +42,9 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      # Sem essa flag, selfHeal ignora o ignoreDifferences e fica
+      # sobrescrevendo — deixando OutOfSync eterno.
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:

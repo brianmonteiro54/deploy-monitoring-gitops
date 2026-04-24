@@ -2,16 +2,6 @@
 # Application 2/4: loki-stack
 # Loki + Promtail (DaemonSet)
 # =============================================================================
-# Correções aplicadas:
-#   - Bucket S3 fixo: togglemaster-loki-637423306132 (sua conta AWS Academy)
-#   - Sem PVC — Loki usa S3 como backend, conforme recomendado pelo professor
-#   - grafana.sidecar.datasources.enabled: false
-#     * BUG conhecido do chart loki-stack: o template datasources.yaml
-#       cria o ConfigMap mesmo com grafana.enabled:false, porque a condição
-#       do template só checa sidecar.datasources.enabled (que tem default
-#       true). Isso gera um datasource Loki com isDefault:true que conflita
-#       com o Prometheus (default) e faz o Grafana entrar em CrashLoop com
-#       "Only one datasource per organization can be marked as default".
 # =============================================================================
 # PRÉ-REQUISITO (criar o bucket uma única vez):
 #   aws s3 mb s3://togglemaster-loki-$(aws sts get-caller-identity \
@@ -95,7 +85,9 @@ spec:
           enabled: true
           config:
             clients:
-              - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+              # Service do Loki neste chart é "loki-stack" (nome do Release),
+              # não "loki". Mesmo endpoint usado pelo OTel Collector.
+              - url: http://loki-stack.monitoring.svc.cluster.local:3100/loki/api/v1/push
             snippets:
               pipelineStages:
                 - cri: {}
