@@ -3,9 +3,11 @@
 # Loki + Promtail (DaemonSet)
 # =============================================================================
 # =============================================================================
-# PRÉ-REQUISITO (criar o bucket uma única vez):
-#   aws s3 mb s3://togglemaster-loki-$(aws sts get-caller-identity \
-#     --query Account --output text) --region us-east-1
+# PRÉ-REQUISITOS (uma única vez):
+#   1) Criar o bucket S3:
+#        aws s3 mb s3://togglemaster-loki-637423306132 --region us-east-1
+#   2) Garantir que o Secret aws-credentials existe no namespace monitoring
+#      (mesmo secret que o SecretStore do External Secrets já usa).
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -25,9 +27,6 @@ spec:
     targetRevision: "2.10.2"
     helm:
       values: |
-        # Desliga subcharts embutidos no loki-stack que não usamos
-        # (Grafana vem do kube-prometheus-stack; Prometheus também;
-        # fluent-bit/filebeat/logstash não são necessários).
         grafana:
           enabled: false
           sidecar:
@@ -46,6 +45,28 @@ spec:
           enabled: true
           persistence:
             enabled: false
+
+          # ------------------------------------------------------------
+          # Credenciais AWS via Secret (AWS Academy não permite IRSA).
+          # O SDK Go lê essas 3 env vars automaticamente.
+          # ------------------------------------------------------------
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            - name: AWS_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: session-token
+
           config:
             limits_config:
               retention_period: 168h
@@ -85,8 +106,6 @@ spec:
           enabled: true
           config:
             clients:
-              # Service do Loki neste chart é "loki-stack" (nome do Release),
-              # não "loki". Mesmo endpoint usado pelo OTel Collector.
               - url: http://loki-stack.monitoring.svc.cluster.local:3100/loki/api/v1/push
             snippets:
               pipelineStages:
