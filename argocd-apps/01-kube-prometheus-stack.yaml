@@ -2,14 +2,6 @@
 # Application 1/4: kube-prometheus-stack
 # Prometheus + Grafana + Alertmanager + node-exporter + kube-state-metrics
 # =============================================================================
-# Correções aplicadas em relação ao guia original:
-#   - Versão 65.1.0 -> 83.4.2 (mais recente estável)
-#   - ServerSideApply=true (CRDs grandes excedem 262144 bytes no client-side)
-#   - prometheusOperator.admissionWebhooks.enabled: false (evita "tls: bad certificate")
-#   - prometheusOperator.tls.enabled: false (webhook TLS não é gerado corretamente em lab)
-#   - pathType: Prefix nos ingresses (obrigatório em K8s novo)
-#   - Sem PVC (emptyDir) — AWS Academy não permite criar IAM Roles para EBS CSI
-# =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -75,11 +67,15 @@ spec:
 
         # -----------------------------------------------------------------
         # Grafana
+        # Credenciais vêm do Secret "grafana-admin-credentials", gerado pelo
+        # ExternalSecret que lê togglemaster/monitoring no AWS Secrets Manager.
         # -----------------------------------------------------------------
         grafana:
           enabled: true
-          adminUser: admin
-          adminPassword: togglemaster2026
+          admin:
+            existingSecret: grafana-admin-credentials
+            userKey: admin-user
+            passwordKey: admin-password
           persistence:
             enabled: false
           additionalDataSources:
@@ -134,8 +130,9 @@ spec:
           alertmanagerSpec:
             routePrefix: /alertmanager
             externalUrl: http://toggle.pt/alertmanager
-            # Usa o Secret alertmanager-config criado pela Application
-            # monitoring-manifests, que tem a config real (PagerDuty + Discord + self-healing).
+            # Usa o Secret alertmanager-config gerado pelo ExternalSecret,
+            # que monta o alertmanager.yaml com as credenciais reais vindas
+            # de togglemaster/monitoring no AWS Secrets Manager.
             configSecret: alertmanager-config
           ingress:
             enabled: true

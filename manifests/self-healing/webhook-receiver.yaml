@@ -1,7 +1,6 @@
 # =============================================================================
 # Self-Healing Webhook Receiver
 # Roda dentro do cluster, recebe webhooks do Alertmanager e executa
-# rollout restart no deployment afetado.
 # =============================================================================
 ---
 apiVersion: v1
@@ -272,18 +271,3 @@ spec:
     - name: http
       port: 9095
       targetPort: 9095
----
-# Secret para o Discord webhook (crie manualmente ou via ExternalSecret)
-# kubectl create secret generic self-healing-secrets \
-#   -n monitoring \
-#   --from-literal=DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
-apiVersion: v1
-kind: Secret
-metadata:
-  name: self-healing-secrets
-  namespace: monitoring
-  labels:
-    app.kubernetes.io/part-of: togglemaster
-type: Opaque
-stringData:
-  DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/1495469678150156320/RFzHOg_O5iyWvNZHvn68ph5gTqXiMY2_HBwU9DWXQuG0XRi7uxHT0zCuCdJYcoA7E3C1"

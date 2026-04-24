@@ -2,15 +2,6 @@
 # Application 3/4: otel-collector
 # OpenTelemetry Collector (hub central de observabilidade)
 # =============================================================================
-# Correções aplicadas em relação ao guia original:
-#   - Versão 0.97.1 -> 0.146.1 (mais recente)
-#   - image.repository: otel/opentelemetry-collector-contrib
-#     * A imagem k8s (padrão nas versões novas) NÃO tem o exporter
-#       prometheusremotewrite, por isso precisamos da contrib.
-#   - Exporter `loki` removido do contrib — substituído por `otlphttp/loki`
-#     apontando para o endpoint OTLP nativo do Loki (/otlp).
-#   - API Key do New Relic já preenchida.
-# =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -37,6 +28,17 @@ spec:
 
         mode: deployment
         replicaCount: 1
+
+        # ---------------------------------------------------------------
+        # Env vars extras — injeta a New Relic API key no container.
+        # A config abaixo referencia esta var via ${env:NEW_RELIC_API_KEY}.
+        # ---------------------------------------------------------------
+        extraEnvs:
+          - name: NEW_RELIC_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: otel-collector-secrets
+                key: NEW_RELIC_API_KEY
 
         ports:
           otlp:
@@ -108,10 +110,12 @@ spec:
                 insecure: true
 
             # Traces + Metrics + Logs -> New Relic (APM externo)
+            # A api-key vem da env var NEW_RELIC_API_KEY, injetada via
+            # extraEnvs a partir do Secret otel-collector-secrets.
             otlp/newrelic:
               endpoint: "https://otlp.nr-data.net:4317"
               headers:
-                api-key: "3a5e315e5fd3252360e9eb7c8e1885aab40eNRAL"
+                api-key: "${env:NEW_RELIC_API_KEY}"
 
             debug:
               verbosity: basic
