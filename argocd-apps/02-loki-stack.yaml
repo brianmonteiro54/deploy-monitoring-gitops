@@ -24,7 +24,7 @@ spec:
   source:
     repoURL: https://grafana.github.io/helm-charts
     chart: loki-stack
-    targetRevision: "2.9.10"
+    targetRevision: "2.10.3"
     helm:
       values: |
         grafana:
@@ -43,13 +43,12 @@ spec:
 
         loki:
           enabled: true
+          image:
+            repository: grafana/loki
+            tag: "2.9.10"
+            pullPolicy: IfNotPresent
           persistence:
             enabled: false
-
-          # ------------------------------------------------------------
-          # Credenciais AWS via Secret (AWS Academy não permite IRSA).
-          # O SDK Go lê essas 3 env vars automaticamente.
-          # ------------------------------------------------------------
           env:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
@@ -66,7 +65,6 @@ spec:
                 secretKeyRef:
                   name: aws-credentials
                   key: session-token
-
           config:
             limits_config:
               retention_period: 168h
